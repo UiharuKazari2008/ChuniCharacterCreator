@@ -1,0 +1,28 @@
+{
+	"id": 8000,
+	"name": "Snow White",
+	"sortName": "Snow",
+	"illustrator": {
+		"id": 80000,
+		"name": "SHIFT UP"
+	},
+	"works": {
+		"id": 911,
+		"name": "NIKKE"
+	},
+	"default": true,
+	"transforms": [
+		{
+			"rank": 15,
+			"name": "Snow White: Innocent Days"
+		}
+	],
+	"rewards": [
+		{
+			"id": 61190000,
+			"type": 1,
+			"name": "&#67;&#111;&#105;&#110;&#32;&#84;&#111;&#115;&#115;&#32;&#83;&#101;&#101;&#100;&#215;1",
+			"levels": [3,5,7,10,12,15,20,25,30,40,50,60,70,80,90,100,150,200]
+		}
+	]
+}
