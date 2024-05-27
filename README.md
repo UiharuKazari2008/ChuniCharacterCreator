@@ -70,8 +70,56 @@ Mode                 LastWriteTime         Length Name
 3. Run CCC.exe to compile
 4. Files are outputted in output/
 
+## Decompiler
+You can use the decompiler to extract charas into a workspace structure
+### Folder Structure
+```powersell
+
+
+    Directory: \ChuniCharacterCreator
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----        2024/05/26      8:21                import
+-a----        2024/05/26      8:20       38764782 CCC_Build.exe
+-a----        2024/05/26     19:45       35908949 CCC_Decompiler.exe
+
+
+    Directory: \ChuniCharacterCreator\import\AZM1
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----        2024/05/26     17:24                chara
+d-----        2024/05/26     18:12                ddsImage
+-a----        2024/05/26     19:15             90 config.json
+```
+### Config File
+You can add a config.json inside the workspace directory, Items in here are used to overwrite the extracted data.
+
+The ID Number is the new starting ID and will be added incrementally
+```json
+{
+  "id": 9800,
+  "works": {
+    "id": 9854,
+    "name": "KAZARI"
+  },
+  "default": true
+}
+```
+### How to use
+1. Copy a Chara.xml and DDSImage.xml for templating
+2. Copy the chara and ddsImage folders from the option pack you made or from the dataset to a workspace folder
+3. Add a config.json if needed
+4. Run CCC_Decompiler.exe to compile
+5. Files are outputted in extracted/
+
 ## Build
 ```powershell
 pkg .
 npx resedit --in .\build\chunicharactercreator.exe --out .\build\CCC_Build.exe --icon 1,..\sos-kirishima\icon.ico --no-grow --company-name "Academy City Research P.S.R." --file-description "Chunithm XML Compiler" --product-version 1.0.0.0 --product-name 'ChuniCharacterCreator'
+pkg --compress GZip .\decompile.js --target node16-win-x64 --output .\build\decompiler.exe
+npx resedit --in .\build\decompiler.exe --out .\build\CCC_Decompiler.exe --icon 1,..\sos-kirishima\icon.ico --no-grow --company-name "Academy City Research P.S.R." --file-description "Chunithm XML Decompiler" --product-version 1.0.0.0 --product-name 'ChuniCharacterCreator'
 ```

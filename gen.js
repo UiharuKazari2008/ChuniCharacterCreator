@@ -2,6 +2,7 @@
     const fs = require('fs');
     const path = require('path');
     const xml2js = require('xml2js');
+    const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
     if (!(fs.existsSync(path.join("./input/")))) { fs.mkdirSync(path.join("./input/")) }
     if (!(fs.existsSync(path.join("./output/")))) { fs.mkdirSync(path.join("./output/")) }
@@ -55,12 +56,15 @@
         return JSON.parse(JSON.stringify(d));
     }
     function buildChara(workspace) {
+        console.log(`Compile: ${workspace}`);
         if (!(fs.existsSync(path.join("./output/", workspace)))) {
             fs.mkdirSync(path.join("./output/", workspace))
         }
         if (!(fs.existsSync(path.join("./output/", workspace, "chara/")))) { fs.mkdirSync(path.join("./output/", workspace, "/chara/")) }
         if (!(fs.existsSync(path.join("./output/", workspace, "/ddsImage/")))) { fs.mkdirSync(path.join("./output/", workspace, "/ddsImage/")) }
-        (fs.readdirSync(path.join("./input", workspace))).map(chara => {
+        const charaFiles = fs.readdirSync(path.join("./input", workspace));
+        for (const chara of charaFiles) {
+            console.log(`- Processing Chara: ${chara}`);
             const meta = JSON.parse((fs.readFileSync(path.join("./input", workspace, chara, "meta.json"))).toString());
             console.log(meta)
             let id = 0;
@@ -75,23 +79,29 @@
                     case "id":
                         c[fn]['name'][0]['id'] = [meta[k] + '0'];
                         id = meta[k];
+                        console.log(`- - ID: ${id}`);
                         break;
                     case "name":
                         c[fn]['name'][0]['str'] = [meta[k]];
+                        console.log(`- - Name: ${meta[k]}`);
                         break;
-                    case "sortName":
-                        c[fn]['sortName'] = [meta[k]];
+                    case "sort":
+                        c[fn]['sortName'] = [meta["sort"]];
+                        console.log(`- - Sort: ${meta['sort']}`);
                         break;
                     case "works":
                         c[fn]['works'][0]['id'] = [meta.works.id.toString()];
                         c[fn]['works'][0]['str'] = [meta.works.name.toString()];
+                        console.log(`- - Works: ${meta.works.name} (${meta.works.id})`);
                         break;
                     case "illustrator":
                         c[fn]['illustratorName'][0]['id'] = [meta.illustrator.id.toString()];
                         c[fn]['illustratorName'][0]['str'] = [meta.illustrator.name.toString()];
+                        console.log(`- - Illustrator: ${meta.illustrator.name} (${meta.illustrator.id})`);
                         break;
                     case "default":
                         c[fn]['defaultHave'] = [(!!meta[k]).toString()];
+                        console.log(`- - Default Have?: ${(!!meta[k]).toString().toUpperCase()}`);
                         break;
                     default:
                         break;
@@ -100,6 +110,7 @@
             c[fn]['dataName'] = [`chara0${padToFourCharacters(id)}0`];
             c[fn]['ranks'][0]["CharaRankData"] = [];
             if (meta['rewards'] && meta['rewards'].length > 0) {
+                console.log(`- - Rewards: ${meta['rewards'].length}`);
                 meta['rewards'].map(rew => {
                     const levels = rew["levels"];
                     c[fn]['ranks'][0]["CharaRankData"].push(...levels.map(l => {
@@ -121,8 +132,9 @@
                 })
             }
 
-            const numOfTransforms = (fs.readdirSync(path.join("./input", workspace, chara)).filter(f => (fs.statSync(path.join("./input", workspace, chara, f))).isDirectory())).length
+            const numOfTransforms = (meta.transforms && meta.transforms.length > 0) ? meta.transforms.length  + 1 : 1
 
+            console.log(`- - Transforms: ${numOfTransforms}`);
             for (let i = 1; i <= 9; i++) {
                 c[fn]['addImages' + i] = [{
                     changeImg: [false],
@@ -177,7 +189,8 @@
             fs.writeFileSync(path.join("./output/", workspace, "/chara/", `chara0${padToFourCharacters(id)}0`, 'Chara.xml'), charaXML.replaceAll('/>', ' />').toString(), {encoding: "utf8"});
 
             const ddsFolders = fs.readdirSync(path.join("./input", workspace, chara));
-            imagesXML.map((img, i) => {
+            for (const i in imagesXML) {
+                const img = imagesXML[i];
                 if (!(fs.existsSync(path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`)))) {
                     fs.mkdirSync(path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`))
                 }
@@ -186,15 +199,22 @@
 
                 fs.writeFileSync(path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, 'DDSImage.xml'), ddsImageXML.replaceAll('/>', ' />').toString(), {encoding: "utf8"});
 
-                fs.readdirSync(path.join("./input", workspace, chara, ddsFolders[i])).map((file,fi) => {
-                    fs.copyFileSync(path.join("./input", workspace, chara, ddsFolders[i], file), path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${fi}.dds`))
-                })
-            })
-        })
+                if (meta.flat) {
+                    for (let g = 0; g <= 2; g++) {
+                        fs.copyFileSync(path.join("./input", workspace, chara, `${i}${g}.dds`), path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${g}.dds`))
+                    }
+                } else {
+                    fs.readdirSync(path.join("./input", workspace, chara, ddsFolders[i])).map((file, fi) => {
+                        fs.copyFileSync(path.join("./input", workspace, chara, ddsFolders[i], file), path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${fi}.dds`))
+                    })
+                }
+            }
+        }
     }
 
-    workspaces.map(w => {
-        buildChara(w)
-    })
-
+    for (const w of workspaces) {
+        console.log("Starting Compiler...");
+        await buildChara(w);
+    }
+    await sleep(5000);
 })()
