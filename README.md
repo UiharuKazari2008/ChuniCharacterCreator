@@ -122,4 +122,6 @@ pkg .
 npx resedit --in .\build\chunicharactercreator.exe --out .\build\CCC_Build.exe --icon 1,..\sos-kirishima\icon.ico --no-grow --company-name "Academy City Research P.S.R." --file-description "Chunithm XML Compiler" --product-version 1.0.0.0 --product-name 'ChuniCharacterCreator'
 pkg --compress GZip .\decompile.js --target node16-win-x64 --output .\build\decompiler.exe
 npx resedit --in .\build\decompiler.exe --out .\build\CCC_Decompiler.exe --icon 1,..\sos-kirishima\icon.ico --no-grow --company-name "Academy City Research P.S.R." --file-description "Chunithm XML Decompiler" --product-version 1.0.0.0 --product-name 'ChuniCharacterCreator'
+pkg --compress GZip .\mitigate.js --target node16-win-x64 --output .\build\migrate.exe
+npx resedit --in .\build\migrate.exe --out .\build\CCC_Migrate.exe --icon 1,..\sos-kirishima\icon.ico --no-grow --company-name "Academy City Research P.S.R." --file-description "Chunithm XML Decompiler" --product-version 1.0.0.0 --product-name 'ChuniCharacterCreator'
 ```
