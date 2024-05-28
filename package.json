@@ -12,6 +12,7 @@
   },
   "private": true,
   "dependencies": {
+    "@vitalets/google-translate-api": "^9.2.0",
     "xml2js": "^0.6.2"
   },
   "bin": "gen.js",
@@ -20,8 +21,7 @@
       "gen.js"
     ],
     "output": "CCCGen",
-    "assets": [
-    ],
+    "assets": [],
     "targets": [
       "node16-win-x64"
     ],

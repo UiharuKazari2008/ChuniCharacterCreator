@@ -2,6 +2,7 @@
     const fs = require('fs');
     const path = require('path');
     const xml2js = require('xml2js');
+    const { exec } = require("child_process");
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
     if (!(fs.existsSync(path.join("./input/")))) { fs.mkdirSync(path.join("./input/")) }
@@ -37,6 +38,12 @@
         });
     })
 
+    const nvcompReady = (fs.existsSync(path.join("C:\\Program Files\\NVIDIA Corporation\\NVIDIA Texture Tools\\", "nvcompress.exe")))
+
+    if (nvcompReady) {
+        console.log("NVIDIA Texture Tools are found!")
+    }
+
     function padToFourCharacters(input) {
         return input.toString().padStart(4, '0');
     }
@@ -55,7 +62,7 @@
         }
         return JSON.parse(JSON.stringify(d));
     }
-    function buildChara(workspace) {
+    async function buildChara(workspace) {
         console.log(`Compile: ${workspace}`);
         if (!(fs.existsSync(path.join("./output/", workspace)))) {
             fs.mkdirSync(path.join("./output/", workspace))
@@ -67,9 +74,26 @@
             console.log(`- Processing Chara: ${chara}`);
             const meta = JSON.parse((fs.readFileSync(path.join("./input", workspace, chara, "meta.json"))).toString());
             console.log(meta)
+            let template = charaTemplate
+            if (fs.existsSync(path.join("./input", workspace, chara, "Chara.xml"))) {
+                const _charaTemplate = await new Promise(ok => {
+                    xml2js.parseString((fs.readFileSync(path.join("./input", workspace, chara, "Chara.xml"))).toString(), (err, result) => {
+                        if (err) {
+                            console.log('Error parsing XML:', err.message);
+                            ok(false);
+                        } else {
+                            ok(result);
+                        }
+                    });
+                })
+                if (_charaTemplate) {
+                    console.log(`- - Using Template File`);
+                    template = _charaTemplate;
+                }
+            }
             let id = 0;
-            let fn = Object.keys(charaTemplate);
-            let c = charaTemplate;
+            let fn = Object.keys(template);
+            let c = template;
             const nodes = Object.keys(meta);
 
             let imagesXML = [];
@@ -189,6 +213,11 @@
             fs.writeFileSync(path.join("./output/", workspace, "/chara/", `chara0${padToFourCharacters(id)}0`, 'Chara.xml'), charaXML.replaceAll('/>', ' />').toString(), {encoding: "utf8"});
 
             const ddsFolders = fs.readdirSync(path.join("./input", workspace, chara));
+            if (meta.flat) {
+                console.log(`- - - Reading as flat directory`);
+            } else {
+                console.log(`- - - Reading as directories`);
+            }
             for (const i in imagesXML) {
                 const img = imagesXML[i];
                 if (!(fs.existsSync(path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`)))) {
@@ -200,13 +229,87 @@
                 fs.writeFileSync(path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, 'DDSImage.xml'), ddsImageXML.replaceAll('/>', ' />').toString(), {encoding: "utf8"});
 
                 if (meta.flat) {
+                    console.log(`- - - - Copy Image Set ${i}`);
                     for (let g = 0; g <= 2; g++) {
-                        fs.copyFileSync(path.join("./input", workspace, chara, `${i}${g}.dds`), path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${g}.dds`))
+                        if (fs.existsSync(path.join("./input", workspace, chara, `${i}${g}.dds`))) {
+                            fs.copyFileSync(path.join("./input", workspace, chara, `${i}${g}.dds`), path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${g}.dds`))
+                        } else if (nvcompReady && fs.existsSync(path.join("./input", workspace, chara, `${i}${g}.png`))) {
+                            console.log(`- - - - Converting ${i}${g}`);
+                            fs.copyFileSync(path.join("./input", workspace, chara, `${i}${g}.png`), path.join("./", "temp.png"))
+                            const conv = await new Promise((resolve, reject) => {
+                                const args = [
+                                    `"${path.resolve(path.join("C:\\Program Files\\NVIDIA Corporation\\NVIDIA Texture Tools\\", "nvcompress.exe"))}"`,
+                                    '-color',
+                                    '-nomips',
+                                    '-highest',
+                                    '-bc3',
+                                    '"' + path.resolve(path.join("./", "temp.png")) + '"',
+                                    '"' + path.resolve(path.join("./", "temp.dds")) + '"'
+                                ].join(" ");
+                                exec(args, (error, stdout, stderr) => {
+                                    if (error) {
+                                        console.error(`exec error: ${error}`);
+                                        console.error(stderr);
+                                        return;
+                                    }
+                                    if (fs.existsSync(path.resolve(path.join("./", "temp.png")))) {
+                                        fs.unlinkSync(path.resolve(path.join("./", "temp.png")))
+                                    }
+                                    console.log(stdout);
+                                    resolve(!error)
+                                });
+                            });
+                            if (!conv || !(fs.existsSync(path.resolve(path.join("./", "temp.dds"))))) {
+                                console.error("Failed to generate file!");
+                            } else {
+                                fs.renameSync(path.resolve(path.join("./", "temp.dds")), path.resolve(path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${g}.dds`)))
+                            }
+                        } else {
+                            console.error(`- - - - Missing Image ${i}${g}`);
+                        }
                     }
                 } else {
-                    fs.readdirSync(path.join("./input", workspace, chara, ddsFolders[i])).map((file, fi) => {
-                        fs.copyFileSync(path.join("./input", workspace, chara, ddsFolders[i], file), path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${fi}.dds`))
-                    })
+                    console.log(`- - - - Copy Image Set ${i}`);
+                    const imageFiles = fs.readdirSync(path.join("./input", workspace, chara, ddsFolders[i]))
+                    for (let fi in imageFiles) {
+                        const file = imageFiles[fi];
+                        if (fs.existsSync(path.join("./input", workspace, chara, ddsFolders[i], file))) {
+                            fs.copyFileSync(path.join("./input", workspace, chara, ddsFolders[i], file), path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${fi}.dds`))
+                        } else if (nvcompReady && fs.existsSync(path.join("./input", workspace, chara, ddsFolders[i], file.replace(".dds",".png")))) {
+                            console.log(`- - - - Converting ${ddsFolders[i]}/${i}`);
+                            fs.copyFileSync(path.join("./input", workspace, chara, ddsFolders[i], file.replace(".dds",".png")), path.join("./", "temp.png"))
+                            const conv = await new Promise((resolve, reject) => {
+                                const args = [
+                                    `"${path.resolve(path.join("C:\\Program Files\\NVIDIA Corporation\\NVIDIA Texture Tools\\", "nvcompress.exe"))}"`,
+                                    '-color',
+                                    '-nomips',
+                                    '-highest',
+                                    '-bc3',
+                                    '"' + path.resolve(path.join("./", "temp.png")) + '"',
+                                    '"' + path.resolve(path.join("./", "temp.dds")) + '"'
+                                ].join(" ");
+                                exec(args, (error, stdout, stderr) => {
+                                    if (error) {
+                                        console.error(`exec error: ${error}`);
+                                        console.error(stderr);
+                                        return;
+                                    }
+                                    if (fs.existsSync(path.resolve(path.join("./", "temp.png")))) {
+                                        fs.unlinkSync(path.resolve(path.join("./", "temp.png")))
+                                    }
+                                    console.log(stdout);
+                                    resolve(!error);
+                                });
+                            });
+                            if (!conv || !(fs.existsSync(path.resolve(path.join("./", "temp.dds"))))) {
+                                console.error("Failed to generate file!");
+                            } else {
+                                fs.renameSync(path.resolve(path.join("./", "temp.dds")), path.resolve(path.join("./output/", workspace, "/ddsImage/", `ddsImage0${padToFourCharacters(id)}${i}`, `CHU_UI_Character_${padToFourCharacters(id)}_0${i}_0${g}.dds`)))
+                            }
+                        } else {
+                            console.error(`- - - - Missing Image ${ddsFolders[i]}/${i}`);
+                        }
+                    }
                 }
             }
         }
