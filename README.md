@@ -41,11 +41,12 @@ Mode                 LastWriteTime         Length Name
 {
 	"id": 8001,
 	"name": "Modernia",
-	"sortName": "Modernia",
+	"sort": "Modernia",
 	"illustrator": {
 		"id": 80000,
 		"name": "SHIFT UP"
 	},
+    "flat": false,
 	"works": {
 		"id": 911,
 		"name": "NIKKE"
@@ -63,6 +64,9 @@ Mode                 LastWriteTime         Length Name
 	]
 }
 ```
+Flat Setting is when you want to keep all images in the folder and do not want a folder per transform, Files must be ##.dds/png where the first number is 0-9 and is the transform and 0-2 is the image index
+
+You can also add a chara.xml in the folder to override the base template
 
 ## How to use
 1. Copy a Chara.xml and DDSImage.xml for templating
